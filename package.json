@@ -1,0 +1,22 @@
+{
+  "name": "phoria",
+  "version": "1.0.0",
+  "description": "Download Instagram photos with ease",
+  "main": "dist/Phoria.user.js",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "watch": "node scripts/build.js --watch"
+  },
+  "keywords": [
+    "instagram",
+    "download",
+    "userscript"
+  ],
+  "author": "Jesewe",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jesewe/Phoria.git"
+  },
+  "devDependencies": {}
+}

@@ -1,0 +1,96 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Tag for the release"
+        required: true
+        default: "v1.0.0"
+      prerelease:
+        description: "Mark as pre-release"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  actions: read
+  id-token: none
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build userscript
+        run: node scripts/build.js
+
+      - name: Verify build output
+        run: |
+          echo "Listing dist directory:"
+          ls -la dist/
+          if [ ! -f dist/Phoria.user.js ]; then
+            echo "Error: File Phoria.user.js not found in dist directory!"
+            exit 1
+          fi
+          echo ""
+          echo "Build successful! File size:"
+          ls -lh dist/Phoria.user.js
+
+      - name: Commit and push built extension
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add dist/Phoria.user.js
+          git diff --staged --quiet || git commit -m "Build: Update Phoria.user.js for ${{ github.event.inputs.tag_name }}"
+          git push
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Phoria-userscript
+          path: dist/Phoria.user.js
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Phoria-userscript
+          path: ./artifact-download
+
+      - name: Verify Downloaded Artifact
+        run: |
+          echo "Listing artifact-download directory:"
+          ls -la ./artifact-download
+          if [ ! -f ./artifact-download/Phoria.user.js ]; then
+            echo "Error: File Phoria.user.js not found in artifact-download directory!"
+            exit 1
+          fi
+          echo ""
+          echo "Artifact verified successfully!"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.tag_name }}
+          name: Phoria - ${{ github.event.inputs.prerelease == 'true' && 'Pre-release' || 'Release' }} ${{ github.event.inputs.tag_name }}
+          body_path: ./ChangeLog.md
+          files: |
+            ./artifact-download/Phoria.user.js
+          prerelease: ${{ github.event.inputs.prerelease }}
